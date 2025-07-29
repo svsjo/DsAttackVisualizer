@@ -1,4 +1,4 @@
-from utils import parse_angriffe, parse_coords
+from utils import parse_angriffe, parse_coords, format_angriffe, format_coords
 from persistence import save_state, load_state
 
 class AttackData:
@@ -27,19 +27,22 @@ class AttackData:
         """
         Aktualisiert die Daten und Texteingaben basierend auf den übergebenen Texten.
         """
-        self.texts["angriffe"] = angriffe_text
-        self.texts["wachturm"] = wachturm_text
-        self.texts["simwt"] = simwt_text
-        self.texts["eigene"] = eigene_text
-        self.texts["feind"] = feind_text
-        self.texts["stamm"] = stamm_text
 
+        # Parsen der Angriffe oder Dörfer
         self.alle_angriffe = parse_angriffe(angriffe_text)
         self.wachturmdorfer = parse_coords(wachturm_text)
         self.simwt_dorfer = parse_coords(simwt_text)
         self.eigene_dorfer = parse_coords(eigene_text)
         self.feind_dorfer = parse_coords(feind_text)
         self.stamm_dorfer = parse_coords(stamm_text)
+
+        # Bereits geparst, im Inputfeld die geparste Version anzeigen ohne unnötige Infos
+        self.texts["angriffe"] = format_angriffe(self.alle_angriffe)
+        self.texts["wachturm"] = format_coords(self.wachturmdorfer)
+        self.texts["simwt"] = format_coords(self.simwt_dorfer)
+        self.texts["eigene"] = format_coords(self.eigene_dorfer)
+        self.texts["feind"] = format_coords(self.feind_dorfer)
+        self.texts["stamm"] = format_coords(self.stamm_dorfer)
 
     def to_dict(self):
         """Konvertiert den aktuellen Zustand in ein Dictionary zur Persistenz."""

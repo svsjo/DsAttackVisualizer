@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from utils import line_intersects_circle
 
 from model import AttackData
 
@@ -20,87 +21,77 @@ class AttackVisualizationApp:
         self.load_app_data()
 
     def setup_ui(self):
-        """Erstellt und ordnet die UI-Elemente an."""
-        # Konfiguration des Root-Fensters für dynamisches Wachstum
+        self.setup_mainframe()
+        self.setup_input_fields()
+        self.setup_canvas_area()
+        self.setup_events()
+
+    def setup_mainframe(self):
+        self.mainframe = ttk.Frame(self.root)
         self.root.rowconfigure(0, weight=1)
         self.root.columnconfigure(0, weight=1)
         self.root.columnconfigure(1, weight=1)
 
-        mainframe = ttk.Frame(self.root)
-        mainframe.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        mainframe.rowconfigure(1, weight=1)
-        mainframe.columnconfigure(0, weight=1)
-        mainframe.columnconfigure(1, weight=1)
+        self.mainframe.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        for i in range(8):
+            self.mainframe.rowconfigure(i, weight=1)
+        for i in range(2):
+            self.mainframe.columnconfigure(i, weight=1)
 
-        # Eingabefeld für Angriffe
-        ttk.Label(mainframe, text="Angriffe (Copy/Paste)").grid(row=0, column=0, columnspan=2, sticky="w")
-        self.angriffe_text = scrolledtext.ScrolledText(mainframe, width=80, height=20)
-        self.angriffe_text.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
-
-        # Wachtürme (eigene)
-        ttk.Label(mainframe, text="Wachtürme (grün)").grid(row=2, column=0, sticky="w")
-        self.wachturm_text = scrolledtext.ScrolledText(mainframe, width=40, height=10)
-        self.wachturm_text.grid(row=3, column=0, padx=5, pady=5, sticky="nsew")
-
-        # Sim-Wachtürme
-        ttk.Label(mainframe, text="Sim-Wachtürme (blau)").grid(row=2, column=1, sticky="w")
-        self.simwt_text = scrolledtext.ScrolledText(mainframe, width=40, height=10)
-        self.simwt_text.grid(row=3, column=1, padx=5, pady=5, sticky="nsew")
-
-        # Eigene Dörfer
-        ttk.Label(mainframe, text="Eigene Dörfer (gelb)").grid(row=4, column=0, sticky="w")
-        self.eigene_text = scrolledtext.ScrolledText(mainframe, width=40, height=10)
-        self.eigene_text.grid(row=5, column=0, padx=5, pady=5, sticky="nsew")
-
-        # Feind-Dörfer
-        ttk.Label(mainframe, text="Feind-Dörfer (rot)").grid(row=4, column=1, sticky="w")
-        self.feind_text = scrolledtext.ScrolledText(mainframe, width=40, height=10)
-        self.feind_text.grid(row=5, column=1, padx=5, pady=5, sticky="nsew")
-
-        # Stamm-Dörfer
-        ttk.Label(mainframe, text="Stamm-Dörfer (blau)").grid(row=6, column=0, sticky="w")
-        self.stamm_text = scrolledtext.ScrolledText(mainframe, width=40, height=10)
-        self.stamm_text.grid(row=7, column=0, padx=5, pady=5, sticky="nsew")
-
-        # Aktualisieren-Button
-        update_btn = ttk.Button(mainframe, text="🔄 Aktualisieren", command=self.aktualisieren)
-        update_btn.grid(row=7, column=1, pady=10)
-
-        # Statusanzeige
-        self.status_label = ttk.Label(mainframe, text="Status: ")
-        self.status_label.grid(row=8, column=0, columnspan=2, sticky="w")
-
-        # Neuer Canvas-Bereich mit Grid-Layout für Canvas und Toolbar
+    def setup_canvas_area(self):
         canvas_frame = ttk.Frame(self.root)
         canvas_frame.grid(row=0, column=1, rowspan=3, padx=10, pady=10, sticky="nsew")
-        canvas_frame.rowconfigure(0, weight=1)  # Canvas soll den Großteil des Platzes einnehmen
-        canvas_frame.rowconfigure(1, weight=0)  # Toolbar behält feste Höhe
+        canvas_frame.rowconfigure(0, weight=1)  # Hauptplatz für die Karte
+        canvas_frame.rowconfigure(1, weight=0)  # Toolbar behält fixe Höhe
         canvas_frame.columnconfigure(0, weight=1)
 
-        # Erstelle einmalig die Figure und Achse
+        # Erstelle Figure und Canvas
         self.fig, self.ax = plt.subplots(figsize=(10, 10))
         self.canvas = FigureCanvasTkAgg(self.fig, master=canvas_frame)
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
 
-        # Erstelle einen separaten Frame für die Toolbar innerhalb von canvas_frame
+        # Toolbar separat unterhalb
         toolbar_frame = ttk.Frame(canvas_frame)
         toolbar_frame.grid(row=1, column=0, sticky="ew")
-
-        # Erstelle die Navigation-Toolbar mit toolbar_frame als Master,
-        # sodass die pack()-Aufrufe nur in diesem Unterframe wirken.
         self.toolbar = NavigationToolbar2Tk(self.canvas, toolbar_frame)
         self.toolbar.update()
 
-        # Setze das Label für die Mausposition in einer weiteren Zeile
+        # Label für Mausposition
         self.pos_label = ttk.Label(canvas_frame, text="Maus Position: x=?, y=?")
         self.pos_label.grid(row=2, column=0, sticky="w", pady=(5, 0))
 
+    def setup_events(self):
         self.canvas.mpl_connect('scroll_event', self.zoom)
         self.canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
-        self.press = None  # Variable zur Speicherung des Panning-Zustands
+
+        self.press = None  # Panning-Zustand
         self.canvas.mpl_connect('button_press_event', self.on_press)
         self.canvas.mpl_connect('button_release_event', self.on_release)
         self.canvas.mpl_connect('motion_notify_event', self.on_motion_pan)
+
+    def setup_input_fields(self):
+        # Eingabefelder
+        self.angriffe_text = self._add_scrolled_input("Angriffe (Copy/Paste aus Angriffsübersicht) - grün wenn durch WT, blau durch SimWt, sonst grau", 0, 0, colspan=2, height=20)
+
+        self.wachturm_text = self._add_scrolled_input("Wachtürme (schwarz)", 2, 0)
+        self.simwt_text = self._add_scrolled_input("Sim-Wachtürme (blau)", 2, 1)
+
+        self.eigene_text = self._add_scrolled_input("Eigene Dörfer (gelb)", 4, 0)
+        self.feind_text = self._add_scrolled_input("Feind-Dörfer (orange) - bspw. aus Workbench filterbar", 4, 1)
+
+        self.stamm_text = self._add_scrolled_input("Stamm-Dörfer (grau)", 6, 0)
+
+        update_btn = ttk.Button(self.mainframe, text="🔄 Aktualisieren", command=self.aktualisieren)
+        update_btn.grid(row=7, column=1, pady=10)
+
+        self.status_label = ttk.Label(self.mainframe, text="Status: ")
+        self.status_label.grid(row=8, column=0, columnspan=2, sticky="w")
+
+    def _add_scrolled_input(self, label: str, row: int, col: int, colspan=1, height=10):
+        ttk.Label(self.mainframe, text=label).grid(row=row, column=col, columnspan=colspan, sticky="w")
+        text_widget = scrolledtext.ScrolledText(self.mainframe, width=40 * colspan, height=height)
+        text_widget.grid(row=row + 1, column=col, columnspan=colspan, padx=5, pady=5, sticky="nsew")
+        return text_widget
 
     def draw_chart(self):
         """Zeichnet die Karte in die bestehende Achse (self.ax)."""
@@ -112,18 +103,31 @@ class AttackVisualizationApp:
 
         # Angriffe
         for ziel, start, _ in self.data.alle_angriffe:
+            arrow_color = 'grey'
+
+            for wt in self.data.wachturmdorfer:
+                if line_intersects_circle(start, ziel, wt, 15):
+                    arrow_color = 'green'
+                    break
+
+            if arrow_color == 'grey':
+                for wt in self.data.simwt_dorfer:
+                    if line_intersects_circle(start, ziel, wt, 15):
+                        arrow_color = 'blue'
+                        break
+
             self.ax.plot(*start, color='red', marker='o', markersize=1.5, zorder=2)
             self.ax.plot(*ziel, color='orange', marker='o', markersize=1.8, zorder=2)
             self.ax.annotate("", xy=ziel, xytext=start,
-                             arrowprops=dict(arrowstyle="->", color='grey', linewidth=0.1), zorder=1)
+                             arrowprops=dict(arrowstyle="->", color=arrow_color, linewidth=0.1), zorder=1)
 
         # Eigene Dörfer (gelb)
         for dorf in self.data.eigene_dorfer:
             self.ax.plot(*dorf, color='yellow', marker='o', markersize=1.5, zorder=3)
 
-        # Stammdörfer (blau)
+        # Stammdörfer (grau)
         for dorf in self.data.stamm_dorfer:
-            self.ax.plot(*dorf, color='blue', marker='o', markersize=1.5, zorder=3)
+            self.ax.plot(*dorf, color='grey', marker='o', markersize=1.5, zorder=3)
 
         # Wachturm-Kreise (gelb/schwarz)
         for dorf in self.data.wachturmdorfer:
@@ -131,11 +135,11 @@ class AttackVisualizationApp:
             self.ax.add_patch(kreis)
             self.ax.plot(*dorf, color='yellow', marker='o', markersize=2, zorder=5)
 
-        # SimWT-Kreise (grün)
+        # SimWT-Kreise (blau)
         for dorf in self.data.simwt_dorfer:
-            kreis = plt.Circle(dorf, 15, color='green', fill=False, linewidth=1.5, linestyle='--', zorder=4)
+            kreis = plt.Circle(dorf, 15, color='blue', fill=False, linewidth=1.5, linestyle='--', zorder=4)
             self.ax.add_patch(kreis)
-            self.ax.plot(*dorf, color='green', marker='o', markersize=2, zorder=5)
+            self.ax.plot(*dorf, color='blue', marker='o', markersize=2, zorder=5)
 
         self.ax.set_title("Angriffsübersicht")
         self.ax.set_xlabel("X")
@@ -218,8 +222,35 @@ class AttackVisualizationApp:
         feind = self.feind_text.get("1.0", tk.END)
         stamm = self.stamm_text.get("1.0", tk.END)
 
-        self.data.update_from_text(angriffe, wachturm, simwt, eigene, feind, stamm)
+        try:
+            self.data.update_from_text(angriffe, wachturm, simwt, eigene, feind, stamm)
+        except Exception as e:
+            self.status_label.config(text=f"⚠ Fehler beim Parsen: {e}")
+            return
         self.data.save()
+
+        # Jetzt: UI mit formatierter Version überschreiben
+        texts = self.data.texts
+
+        self.angriffe_text.delete("1.0", tk.END)
+        self.angriffe_text.insert("1.0", texts["angriffe"])
+
+        self.wachturm_text.delete("1.0", tk.END)
+        self.wachturm_text.insert("1.0", texts["wachturm"])
+
+        self.simwt_text.delete("1.0", tk.END)
+        self.simwt_text.insert("1.0", texts["simwt"])
+
+        self.eigene_text.delete("1.0", tk.END)
+        self.eigene_text.insert("1.0", texts["eigene"])
+
+        self.feind_text.delete("1.0", tk.END)
+        self.feind_text.insert("1.0", texts["feind"])
+
+        self.stamm_text.delete("1.0", tk.END)
+        self.stamm_text.insert("1.0", texts["stamm"])
+
+        # Visualisierung & Status aktualisieren
         self.update_canvas()
         self.update_status()
 
