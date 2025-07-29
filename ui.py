@@ -77,7 +77,7 @@ class AttackVisualizationApp:
         self.simwt_text = self._add_scrolled_input("Sim-Wachtürme (blau)", 2, 1)
 
         self.eigene_text = self._add_scrolled_input("Eigene Dörfer (gelb)", 4, 0)
-        self.feind_text = self._add_scrolled_input("Feind-Dörfer (orange) - bspw. aus Workbench filterbar", 4, 1)
+        self.feind_text = self._add_scrolled_input("Feind-Dörfer (rot) - bspw. aus Workbench filterbar", 4, 1)
 
         self.stamm_text = self._add_scrolled_input("Stamm-Dörfer (grau)", 6, 0)
 
@@ -99,7 +99,11 @@ class AttackVisualizationApp:
 
         # Feind-Dörfer (rot)
         for dorf in self.data.feind_dorfer:
-            self.ax.plot(*dorf, color='orange', marker='o', markersize=1.5, zorder=0)
+            self.ax.plot(*dorf, color='red', marker='o', markersize=1.2, zorder=2)
+
+        # Eigene Dörfer (gelb)
+        for dorf in self.data.eigene_dorfer:
+            self.ax.plot(*dorf, color='yellow', marker='o', markersize=1.2, zorder=2)
 
         # Angriffe
         for ziel, start, _ in self.data.alle_angriffe:
@@ -116,24 +120,23 @@ class AttackVisualizationApp:
                         arrow_color = 'blue'
                         break
 
-            self.ax.plot(*start, color='red', marker='o', markersize=1.5, zorder=2)
-            self.ax.plot(*ziel, color='orange', marker='o', markersize=1.8, zorder=2)
+
+            self.ax.plot(*start, color='red', marker='o', markersize=1.2, zorder=2)  # Herkunftsdorf
+            self.ax.plot(*start, color='black', marker='o', markersize=2.2, zorder=1)  # Umwanden zum Hervorheben
+            self.ax.plot(*ziel, color='yellow', marker='o', markersize=1.2, zorder=2) # Zieldorf
+            self.ax.plot(*ziel, color='black', marker='o', markersize=2.2, zorder=1) # Umwanden zum Hervorheben
             self.ax.annotate("", xy=ziel, xytext=start,
                              arrowprops=dict(arrowstyle="->", color=arrow_color, linewidth=0.1), zorder=1)
-
-        # Eigene Dörfer (gelb)
-        for dorf in self.data.eigene_dorfer:
-            self.ax.plot(*dorf, color='yellow', marker='o', markersize=1.5, zorder=3)
 
         # Stammdörfer (grau)
         for dorf in self.data.stamm_dorfer:
             self.ax.plot(*dorf, color='grey', marker='o', markersize=1.5, zorder=3)
 
-        # Wachturm-Kreise (gelb/schwarz)
+        # Wachturm-Kreise (schwarz)
         for dorf in self.data.wachturmdorfer:
             kreis = plt.Circle(dorf, 15, color='black', fill=False, linewidth=1.2, linestyle='--', zorder=4)
             self.ax.add_patch(kreis)
-            self.ax.plot(*dorf, color='yellow', marker='o', markersize=2, zorder=5)
+            self.ax.plot(*dorf, color='black', marker='o', markersize=2, zorder=5)
 
         # SimWT-Kreise (blau)
         for dorf in self.data.simwt_dorfer:

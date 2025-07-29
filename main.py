@@ -15,5 +15,8 @@ def main():
     app = AttackVisualizationApp(root)
     root.mainloop()
 
+    # Logik findet eigentlich in ui.py statt!
+    # In draw_chart und aktualisieren
+
 if __name__ == '__main__':
     main()
